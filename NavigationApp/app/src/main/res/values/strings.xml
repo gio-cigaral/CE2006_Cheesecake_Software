@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">NavigationApp</string>
+    <string name="dir_btn">Direction</string>
+    <string name="summary_btn">Summary</string>
+    <string name="title_activity_directions">Directions</string>
+    <string name="title_placeholder">Title Placeholder</string>
+    <string name="description_placeholder">Description Placeholder</string>
+</resources>
