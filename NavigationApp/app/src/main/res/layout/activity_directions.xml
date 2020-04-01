@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-android:layout_height="match_parent"
-android:orientation="vertical"
-xmlns:android="http://schemas.android.com/apk/res/android">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
 <EditText
     android:layout_width="match_parent"
@@ -23,7 +23,8 @@ xmlns:android="http://schemas.android.com/apk/res/android">
 <LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:gravity="center_horizontal">
 
 
     <ImageView
@@ -53,30 +54,52 @@ xmlns:android="http://schemas.android.com/apk/res/android">
         android:id="@+id/textViewTime"
         android:text="0 mins"/>
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Find Direction"
-        android:id="@+id/buttonFindPath"
-        android:enabled="false"/>
-
-    <Button
-        android:id="@+id/buttonFindCarpark"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Find Carpark"
-        android:enabled="false"
-        android:visibility="gone"/>
-
 
 </LinearLayout>
 
-    <fragment
-        android:id="@+id/map"
-        android:name="com.google.android.gms.maps.SupportMapFragment"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        tools:context=".SummaryActivity" />
+        android:layout_height="match_parent" >
 
+        <fragment
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.SupportMapFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:context=".SummaryActivity" />
+
+        <Button
+            android:id="@+id/buttonFindPath"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="85dp"
+            android:background="#35b64f"
+            android:enabled="false"
+            android:text="Find Direction"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/buttonFindCarpark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="22dp"
+            android:background="#35b64f"
+            android:enabled="false"
+            android:text="Find Carpark"
+            android:textColor="#FFFFFF"
+            android:visibility="gone" />
+
+
+    </RelativeLayout>
 
 </LinearLayout>
