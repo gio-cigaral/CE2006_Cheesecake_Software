@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout android:layout_width="match_parent"
+<LinearLayout xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
 android:layout_height="match_parent"
 android:orientation="vertical"
 xmlns:android="http://schemas.android.com/apk/res/android">
@@ -24,25 +25,19 @@ xmlns:android="http://schemas.android.com/apk/res/android">
     android:layout_height="wrap_content"
     android:orientation="horizontal">
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Find Direction"
-        android:id="@+id/buttonFindPath"
-        android:enabled="false"/>
 
     <ImageView
-        android:layout_marginLeft="20dp"
-        android:layout_marginTop="5dp"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:src="@drawable/ic_distances"/>
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="5dp"
+        android:src="@drawable/ic_distances" />
 
     <TextView
+        android:id="@+id/textViewDistance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/textViewDistance"
-        android:text="0 km"/>
+        android:text="0 km" />
 
     <ImageView
         android:layout_marginLeft="20dp"
@@ -59,22 +54,29 @@ xmlns:android="http://schemas.android.com/apk/res/android">
         android:text="0 mins"/>
 
     <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Find Direction"
+        android:id="@+id/buttonFindPath"
+        android:enabled="false"/>
+
+    <Button
         android:id="@+id/buttonFindCarpark"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Find Carpark"
-        android:enabled="false"/>
+        android:enabled="false"
+        android:visibility="gone"/>
 
 
 </LinearLayout>
 
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".SummaryActivity" />
 
-<fragment xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/map"
-    android:name="com.google.android.gms.maps.SupportMapFragment"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".SummaryActivity" />
 
 </LinearLayout>

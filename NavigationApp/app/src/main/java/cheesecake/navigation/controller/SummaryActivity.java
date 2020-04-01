@@ -1,32 +1,45 @@
 package cheesecake.navigation.controller;
 
 import android.Manifest;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.gson.Gson;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Objects;
 
+import cheesecake.navigation.model.Carpark;
 import cheesecake.navigation.model.CarparkData;
 import cheesecake.navigation.model.TrafficData;
 import okhttp3.OkHttpClient;
@@ -52,10 +65,17 @@ public class SummaryActivity extends AppCompatActivity implements OnMapReadyCall
     private static RecyclerView.Adapter trafficAdapter;
     private static RecyclerView.LayoutManager trafficManager;
 
-    private FusedLocationProviderClient fusedLocationClient;
+    private static GoogleMap mMap;
+
     private static Location lastCurrentLocation;
 
-    private GoogleMap mMap;
+    FusedLocationProviderClient mFusedLocationClient;
+    LocationRequest mLocationRequest;
+    Marker mCurrLocationMarker;
+
+    Location mLastLocation;
+
+    private static String caller;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,40 +86,71 @@ public class SummaryActivity extends AppCompatActivity implements OnMapReadyCall
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync((OnMapReadyCallback) this);
 
-//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-//
-//        Task test = fusedLocationClient.getLastLocation()
-//                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-//                    @Override
-//                    public void onSuccess(Location location) {
-//                        // Got last known location. In some rare situations this can be null.
-//                        if (location != null) {
-//                            // Logic to handle location object
-//                            targetLocation = location;
-//                        } else {
-//                            // Set test location to Plaza Singapura mall
-//                            targetLocation = new Location("");
-//                            targetLocation.setLatitude(1.30015359833);
-//                            targetLocation.setLongitude(103.844704628);
-//                        }
-//                    }
-//                });
-//
-//        if (Objects.isNull(targetLocation)) {
-//            Log.d("Create", "FAILED to create targetlocation");
-//        } else {
-//            Log.d("Create", "Target location lat: " + targetLocation.getLatitude());
-//            Log.d("Create", "Target location longitude: " + targetLocation.getLongitude());
-//        }
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        lastCurrentLocation = new Location("");
-        lastCurrentLocation.setLatitude(1.30015359833);
-        lastCurrentLocation.setLongitude(103.844704628);
+        caller = getIntent().getStringExtra("caller");
+        if (caller.equals("Directions")) {
+            lastCurrentLocation = getIntent().getParcelableExtra("Location");
+        }
+        else if (caller.equals("Main")) {
+            lastCurrentLocation = mLastLocation;
+        }
 
-        Log.d("Create", "Layout created");
+    }
 
-        new ParserTask().execute("carpark", "http://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2");
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        //stop location updates when Activity is no longer active
+        if (mFusedLocationClient != null) {
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+        }
+    }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+        int reqCode = 1;
+
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(120000); // two minute interval
+        mLocationRequest.setFastestInterval(120000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            //Location Permission already granted
+            mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
+            mMap.setMyLocationEnabled(true);
+        } else {
+            //Request Location Permission
+            checkLocationPermission();
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, reqCode);
+            return;
+        }
+
+        mMap.setMyLocationEnabled(true);
+
+        ParserTask parserCarpark = new ParserTask();
+        parserCarpark.execute("carpark", "http://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2");
+
         new ParserTask().execute("traffic", "http://datamall2.mytransport.sg/ltaodataservice/TrafficSpeedBandsv2");
+
+        if (caller.equals("Directions")) {
+            LatLng latLong = new LatLng(lastCurrentLocation.getLatitude(), lastCurrentLocation.getLongitude());
+            MarkerOptions markerOptions = new MarkerOptions();
+            markerOptions.position(latLong);
+            markerOptions.title("Destination");
+            markerOptions.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_end));
+            mMap.addMarker(markerOptions);
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLong, 16));
+        }
 
         //Create (Scroll list) Recycler View for Carpark data
         carparkRecyclerView = findViewById(R.id.carparkRecyclerView);
@@ -118,36 +169,8 @@ public class SummaryActivity extends AppCompatActivity implements OnMapReadyCall
         //Set Linear Layout Manager to Traffic Recycler View
         trafficManager = new LinearLayoutManager(this);
         trafficRecyclerView.setLayoutManager(trafficManager);
-    }
-
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-        int reqCode = 1;
-
-        LatLng currentPlace = new LatLng(lastCurrentLocation.getLatitude(),lastCurrentLocation.getLongitude());
-
-        // LatLng current = new LatLng(10.762963, 106.682394);
-
-        mMap.addMarker(new MarkerOptions()
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_current))
-                .title("My Location")
-                .position(currentPlace));
 
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, reqCode);
-            return;
-        }
-        mMap.setMyLocationEnabled(true);
     }
 
     /**
@@ -200,6 +223,27 @@ public class SummaryActivity extends AppCompatActivity implements OnMapReadyCall
             }
 
             Log.d("Async - Post", "Data UI Adapter Refreshed");
+
+
+            // carpark markers
+            int i;
+            for(i=0; i<5; i++) {
+                Carpark temp = cparkData.getDisplayValues().get(i);
+                Location tempLocation = temp.getStartLocation();
+
+                LatLng latlong = new LatLng(tempLocation.getLatitude(), tempLocation.getLongitude());
+                MarkerOptions markerOption = new MarkerOptions();
+                markerOption.position(latlong);
+                markerOption.title(temp.getDevelopment());
+                markerOption.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_carpark));
+                mMap.addMarker(markerOption);
+
+                //move map camera to nearest carpark
+                if(i==0){
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlong, 16));
+                }
+            }
+
         }
 
         /**
@@ -249,23 +293,98 @@ public class SummaryActivity extends AppCompatActivity implements OnMapReadyCall
                 trafficData.createDisplayItems();
             }
 
-            //Log.d("Async - Parser", "Traffic data: " + Objects.isNull(trafficData));
-
-            /* LOG TESTING
-            if (ds.equals("carpark")) {
-                Log.d("Async - Parser - TEST", "Carpark metadata: " + cparkData.getMetadata());
-                Log.d("Async - Parser - TEST", "Carpark num values: " + cparkData.getValue().size());
-                Log.d("Async - Parser - TEST", "Carpark test value:" + cparkData.getValue().get(0).toString());
-            }
-
-            if (ds.equals("traffic")) {
-                Log.d("Async - Parser - TEST", "Traffic metadata: " + trafficData.getMetadata());
-                Log.d("Async - Parser - TEST", "Traffic num values: " + trafficData.getValue().size());
-                Log.d("Async - Parser - TEST", "Traffic test value:" + trafficData.getValue().get(0).toString());
-            }
-             */
-
             Log.d("Async - Parser", ds + "Parse finished");
         }
     }
+
+    LocationCallback mLocationCallback = new LocationCallback() {
+        @Override
+        public void onLocationResult(LocationResult locationResult) {
+            List<Location> locationList = locationResult.getLocations();
+            if (locationList.size() > 0) {
+                //The last location in the list is the newest
+                Location location = locationList.get(locationList.size() - 1);
+                Log.i("MapsActivity", "Location: " + location.getLatitude() + " " + location.getLongitude());
+                mLastLocation = location;
+
+                if (!caller.equals("Directions")) {
+                    lastCurrentLocation = location;
+                }
+
+                if (mCurrLocationMarker != null) {
+                    mCurrLocationMarker.remove();
+                }
+
+                //Place current location marker
+                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(latLng);
+                markerOptions.title("Current Position");
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+                mCurrLocationMarker = mMap.addMarker(markerOptions);
+
+            }
+        }
+    };
+
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+    private void checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                new AlertDialog.Builder(this)
+                        .setTitle("Location Permission Needed")
+                        .setMessage("This app needs the Location permission, please accept to use location functionality")
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                //Prompt the user once explanation has been shown
+                                ActivityCompat.requestPermissions(SummaryActivity.this,
+                                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                                        MY_PERMISSIONS_REQUEST_LOCATION );
+                            }
+                        })
+                        .create()
+                        .show();
+
+
+            } else {
+
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION );
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    if (ContextCompat.checkSelfPermission(this,
+                            Manifest.permission.ACCESS_FINE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) {
+
+                        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallback, Looper.myLooper());
+                        mMap.setMyLocationEnabled(true);
+                    }
+
+                } else {
+
+                    Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+
+        }
+    }
+
 }

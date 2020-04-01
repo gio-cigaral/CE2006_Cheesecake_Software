@@ -1,56 +1,5 @@
 package cheesecake.navigation.controller;
 
-
-//import androidx.fragment.app.FragmentActivity;
-//
-//import android.os.Bundle;
-//
-//import com.google.android.gms.maps.CameraUpdateFactory;
-//import com.google.android.gms.maps.GoogleMap;
-//import com.google.android.gms.maps.OnMapReadyCallback;
-//import com.google.android.gms.maps.SupportMapFragment;
-//import com.google.android.gms.maps.model.LatLng;
-//import com.google.android.gms.maps.model.MarkerOptions;
-//
-///**
-// * Created by Anton 22/03/20
-// *  - Modified by Gio 22/03/20
-// */
-//public class DirectionsActivity extends FragmentActivity implements OnMapReadyCallback {
-//
-//    private GoogleMap mMap;
-//
-//    @Override
-//    protected void onCreate(Bundle savedInstanceState) {
-//        super.onCreate(savedInstanceState);
-//        setContentView(R.layout.activity_directions);
-//        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-//        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-//                .findFragmentById(R.id.map);
-//        mapFragment.getMapAsync(this);
-//    }
-//
-//
-//    /**
-//     * Manipulates the map once available.
-//     * This callback is triggered when the map is ready to be used.
-//     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-//     * we just add a marker near Sydney, Australia.
-//     * If Google Play services is not installed on the device, the user will be prompted to install
-//     * it inside the SupportMapFragment. This method will only be triggered once the user has
-//     * installed Google Play services and returned to the app.
-//     */
-//    @Override
-//    public void onMapReady(GoogleMap googleMap) {
-//        mMap = googleMap;
-//
-//        // Add a marker in Sydney and move the camera
-//        LatLng sydney = new LatLng(-34, 151);
-//        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
-//    }
-//}
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -117,11 +66,11 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
     private ProgressDialog progressDialog;
 
     private FusedLocationProviderClient mfusedLocationClient;
-    private static Location lastCurrentLocation;
-
     LocationRequest mLocationRequest;
-    Location mLastLocation;
     Marker mCurrLocationMarker;
+    Location mLastLocation; // current location of device
+
+    private static LatLng finalDestination;
 
     private TextWatcher loginTextWatcher = new TextWatcher() {
         @Override
@@ -150,45 +99,57 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
         Log.d(TAG, "onCreate: where do we crash (start");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_directions);
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
         mfusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        /*mfusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        if (location != null) {
-                            lastCurrentLocation = location;
-                        }
-                    }
-                });*/
-
-        // public Task<Location> getLastLocation ();
 
         editTextOrigin = (EditText)findViewById(R.id.editTextOrigin);
         editTextDestination = (EditText)findViewById(R.id.editTextDestination);
-        btnFindPath = (Button)findViewById(R.id.buttonFindPath);
         editTextOrigin.addTextChangedListener(loginTextWatcher);
         editTextDestination.addTextChangedListener(loginTextWatcher);
+
+        btnFindPath = (Button)findViewById(R.id.buttonFindPath);
+        carBtn = (Button) findViewById(R.id.buttonFindCarpark);
+
         btnFindPath.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 sendRequest();
+                carBtn.setVisibility(View.VISIBLE);
             }
         });
-        carBtn = (Button) findViewById(R.id.buttonFindCarpark);
+
         carBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
+                Location destLocation = new Location("");
+                destLocation.setLatitude(finalDestination.latitude);
+                destLocation.setLongitude(finalDestination.longitude);
+
                 Toast.makeText(getApplicationContext(), "Get Carpark button pressed", Toast.LENGTH_LONG).show();
+
                 Intent intent = new Intent(view.getContext(), SummaryActivity.class);
+                intent.putExtra("caller", "Directions");
+                intent.putExtra("Location", destLocation);
                 startActivity(intent);
             }
         });
 
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        //stop location updates when Activity is no longer active
+        if (mfusedLocationClient != null) {
+            mfusedLocationClient.removeLocationUpdates(mLocationCallback);
+        }
     }
 
     private void sendRequest() {
@@ -226,17 +187,6 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
         mMap = googleMap;
         int reqCode = 1;
 
-        /*
-        LatLng currentPlace = new LatLng(lastCurrentLocation.getLatitude(),lastCurrentLocation.getLongitude());
-
-        // LatLng currentPlace = new LatLng(10.762963, 106.682394);
-
-        mMap.addMarker(new MarkerOptions()
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_current))
-                .title("My Location")
-                .position(currentPlace));
-        */
-
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(120000); // two minute interval
         mLocationRequest.setFastestInterval(120000);
@@ -255,18 +205,13 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
 
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
 
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.ACCESS_FINE_LOCATION}, reqCode);
             return;
         }
+
         mMap.setMyLocationEnabled(true);
+
     }
 
     LocationCallback mLocationCallback = new LocationCallback() {
@@ -301,20 +246,15 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
 
-            // Should we show an explanation?
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.ACCESS_FINE_LOCATION)) {
 
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
                 new AlertDialog.Builder(this)
                         .setTitle("Location Permission Needed")
                         .setMessage("This app needs the Location permission, please accept to use location functionality")
                         .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
-                                //Prompt the user once explanation has been shown
                                 ActivityCompat.requestPermissions(DirectionsActivity.this,
                                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                                         MY_PERMISSIONS_REQUEST_LOCATION );
@@ -325,7 +265,6 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
 
 
             } else {
-                // No explanation needed, we can request the permission.
                 ActivityCompat.requestPermissions(this,
                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
                         MY_PERMISSIONS_REQUEST_LOCATION );
@@ -342,8 +281,6 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                    // permission was granted, yay! Do the
-                    // location-related task you need to do.
                     if (ContextCompat.checkSelfPermission(this,
                             Manifest.permission.ACCESS_FINE_LOCATION)
                             == PackageManager.PERMISSION_GRANTED) {
@@ -353,16 +290,11 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
                     }
 
                 } else {
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                     Toast.makeText(this, "permission denied", Toast.LENGTH_LONG).show();
                 }
                 return;
             }
 
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
     }
 
@@ -392,7 +324,9 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
         polyLinePaths = new ArrayList<>();
         originMarkers = new ArrayList<>();
         destinationMarker = new ArrayList<>();
+
         Log.d(TAG,"onDIrectionFinderSuccess: before loop for routes "+ routes.get(0).startLocation.toString());
+
         for (Route route : routes) {
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(route.startLocation, 16));
             ((TextView)findViewById(R.id.textViewDistance)).setText(route.distance.text);
@@ -409,6 +343,8 @@ public class DirectionsActivity extends FragmentActivity implements OnMapReadyCa
                     .icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_end))
                     .title(route.endAddress)
                     .position(route.endLocation)));
+            finalDestination = route.endLocation;
+
             Log.d(TAG,"onDIrectionFinderSuccess: after destinitionMarker");
 
             PolylineOptions polylineOptions = new PolylineOptions()
