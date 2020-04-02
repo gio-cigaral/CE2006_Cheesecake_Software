@@ -28,19 +28,19 @@ public class MainActivity extends AppCompatActivity {
         Button dirBtn = findViewById(R.id.directionBtn);
         Button summaryBtn = findViewById(R.id.summaryBtn);
 
-        summaryBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Toast.makeText(getApplicationContext(), "Summary button pressed", Toast.LENGTH_LONG).show(); //display the text of button1
-                openActivity("sum");
-            }
-        });
-
         dirBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 Toast.makeText(getApplicationContext(), "Direction button pressed", Toast.LENGTH_LONG).show(); //display the text of button1
                 openActivity("dir");
+            }
+        });
+
+        summaryBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(getApplicationContext(), "Summary button pressed", Toast.LENGTH_LONG).show(); //display the text of button1
+                openActivity("sum");
             }
         });
     }
@@ -57,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
         }
         else if (str.equals("sum")) {
             Intent intent = new Intent(this, SummaryActivity.class);
+            intent.putExtra("caller", "Main");
             startActivity(intent);
 
         }

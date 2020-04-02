@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NavigationApp</string>
+    <string name="app_name">Traffic Bolt</string>
     <string name="dir_btn">Direction</string>
     <string name="summary_btn">Summary</string>
     <string name="title_activity_directions">Directions</string>
